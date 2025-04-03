@@ -34,10 +34,10 @@ class Birthday(Field):
                 raise ValueError("Birthday cannot be in the future")
         except ValueError:
             raise ValueError("Invalid date format. Use DD.MM.YYYY")
-        super().__init__(date_obj)
+        super().__init__(value)
     
     def __str__(self):
-        return self.value.strftime("%d.%m.%Y")
+        return self.value
 
 class Record:
     def __init__(self, name):
@@ -47,13 +47,29 @@ class Record:
 
     def add_phone(self, number):
         self.phones.append(Phone(number))
+    
+    def remove_phone(self, number):
+        phone = self.find_phone(number) 
+        if phone: 
+            self.phones.remove(phone)  
+            raise ValueError(f"Phone number {number} not found")
 
-    def change_phone(self, old_number, new_number):
+    def edit_phone(self, old_number, new_number):
+       
+        phone = self.find_phone(old_number) 
+            
+        if phone:  
+            self.add_phone(new_number)  
+            self.remove_phone(old_number) 
+            return "phone changed"
+        else:
+            raise ValueError(f"Phone number {old_number} not found")             
+            
+    def find_phone (self,number:str): 
         for phone in self.phones:
-            if phone.value == old_number:
-                phone.value = new_number
-                return "Phone number updated."
-        return "Old phone number not found."
+           if phone.value == number:  
+               return phone
+        return None
 
     def add_birthday(self, date):
         self.birthday = Birthday(date)
@@ -85,7 +101,9 @@ class AddressBook(UserDict):
         
         for record in self.data.values():
             if record.birthday:
-                birthday_this_year = record.birthday.value.replace(year=today.year)
+                birthday_date = datetime.strptime(record.birthday.value, "%d.%m.%Y").date()
+
+                birthday_this_year = birthday_date.replace(year=today.year)
                 
                 if birthday_this_year < today:
                     birthday_this_year = birthday_this_year.replace(year=today.year + 1)
@@ -98,7 +116,7 @@ class AddressBook(UserDict):
                     })
         
         return upcoming_birthdays
-
+               
     @staticmethod
     def adjust_for_weekend(birthday):
         if birthday.weekday() >= 5:
@@ -120,7 +138,8 @@ def change_contact(args, book):
     name, old_phone, new_phone = args
     record = book.find(name)
     if record:
-        return record.change_phone(old_phone, new_phone)
+        return record.edit_phone(old_phone, new_phone)
+    
     return "Contact not found."
 
 @input_error
@@ -154,7 +173,10 @@ def birthdays(args, book):
 
 def parse_input(user_input):
     parts = user_input.split()
+    if not parts: 
+        return "", [] 
     return parts[0].strip().lower(), parts[1:]
+
 
 def main():
     book = AddressBook()
@@ -164,6 +186,8 @@ def main():
         user_input = input("Enter a command: ")
         command, args = parse_input(user_input)
         
+        if not command:continue
+
         if command in ["close", "exit"]:
             print("Good bye!")
             break
